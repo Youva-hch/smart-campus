@@ -15,11 +15,17 @@ class NoteController
 
     public function index(): void
     {
-        $etudiantId = isset($_GET['etudiant_id']) ? (int)$_GET['etudiant_id'] : null;
-        $coursId    = isset($_GET['cours_id'])    ? (int)$_GET['cours_id']    : null;
+        $etudiantId   = isset($_GET['etudiant_id'])   ? (int)$_GET['etudiant_id']   : null;
+        $coursId      = isset($_GET['cours_id'])       ? (int)$_GET['cours_id']       : null;
+        $evaluationId = isset($_GET['evaluation_id']) ? (int)$_GET['evaluation_id'] : null;
 
         if ($etudiantId) {
             echo json_encode($this->model->findByEtudiant($etudiantId));
+            return;
+        }
+
+        if ($evaluationId) {
+            echo json_encode($this->model->findByEvaluation($evaluationId));
             return;
         }
 
@@ -29,7 +35,7 @@ class NoteController
         }
 
         http_response_code(400);
-        echo json_encode(['error' => 'Paramètre etudiant_id ou cours_id requis']);
+        echo json_encode(['error' => 'Paramètre etudiant_id, evaluation_id ou cours_id requis']);
     }
 
     public function store(): void

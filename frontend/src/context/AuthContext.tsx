@@ -7,6 +7,7 @@ interface User {
   prenom: string
   email: string
   role: 'admin' | 'enseignant' | 'etudiant'
+  profil_id?: number | null
 }
 
 interface AuthContextValue {

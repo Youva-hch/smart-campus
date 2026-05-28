@@ -11,7 +11,8 @@ class EnseignantModel extends Model
     public function findAll(): array
     {
         $stmt = $this->db->query(
-            "SELECT en.*, u.nom, u.prenom, u.email, u.actif, r.nom AS role
+            "SELECT en.*, u.nom, u.prenom, u.email, u.actif, r.nom AS role,
+                    (SELECT COUNT(*) FROM cours c WHERE c.enseignant_id = en.id AND c.actif = 1) AS nb_cours
              FROM enseignants en
              JOIN utilisateurs u ON u.id = en.utilisateur_id
              JOIN roles r ON r.id = u.role_id

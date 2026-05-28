@@ -14,6 +14,7 @@ require_once ROOT_PATH . '/app/Controllers/SeanceController.php';
 require_once ROOT_PATH . '/app/Controllers/DashboardController.php';
 require_once ROOT_PATH . '/app/Controllers/PresenceController.php';
 require_once ROOT_PATH . '/app/Controllers/NotificationController.php';
+require_once ROOT_PATH . '/app/Controllers/MessageController.php';
 require_once ROOT_PATH . '/app/Middleware/AuthMiddleware.php';
 
 header('Content-Type: application/json');
@@ -106,6 +107,12 @@ match (true) {
         })(),
 
     // ── Cours ─────────────────────────────────────────────────────────────
+    $method === 'GET' && $uri === '/api/cours/mes-cours'
+        => (function () {
+            AuthMiddleware::isAuthenticated();
+            (new CoursController())->mesCours();
+        })(),
+
     $method === 'GET' && $uri === '/api/cours'
         => (function () {
             AuthMiddleware::isAuthenticated();
@@ -237,6 +244,12 @@ match (true) {
             (new PresenceController())->init((int)$m[1]);
         })(),
 
+    $method === 'GET' && $uri === '/api/presences/bilan'
+        => (function () {
+            AuthMiddleware::isAuthenticated();
+            (new PresenceController())->bilanEtudiant();
+        })(),
+
     // ── Notifications ─────────────────────────────────────────────────────
     $method === 'GET' && $uri === '/api/notifications'
         => (function () {
@@ -299,6 +312,19 @@ match (true) {
             AuthMiddleware::hasRole('admin');
             (new UserController())->store();
         })(),
+
+    // ── Messages ──────────────────────────────────────────────────────────
+    $method === 'GET' && $uri === '/api/messages/conversations'
+        => (function () { AuthMiddleware::isAuthenticated(); (new MessageController())->conversations(); })(),
+
+    $method === 'GET' && $uri === '/api/messages/contacts'
+        => (function () { AuthMiddleware::isAuthenticated(); (new MessageController())->contacts(); })(),
+
+    $method === 'GET' && preg_match('#^/api/messages/(\d+)$#', $uri, $m)
+        => (function () use ($m) { AuthMiddleware::isAuthenticated(); (new MessageController())->conversation((int)$m[1]); })(),
+
+    $method === 'POST' && $uri === '/api/messages'
+        => (function () { AuthMiddleware::isAuthenticated(); (new MessageController())->send(); })(),
 
     default => (function () {
         http_response_code(404);

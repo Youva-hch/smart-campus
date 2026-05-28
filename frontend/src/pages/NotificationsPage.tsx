@@ -2,6 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import api from '../api/client'
 
+const ACCENT = '#E84525'
+const SERIF  = "'Playfair Display', Georgia, serif"
+
 interface Notif {
   id: number
   titre: string
@@ -11,12 +14,22 @@ interface Notif {
   created_at: string
 }
 
-const TYPE_ICONS: Record<string, string> = {
-  note:            '📝',
-  absence:         '⚠️',
-  cours:           '📚',
-  emploi_du_temps: '📅',
-  general:         '🔔',
+const TYPE_COLORS: Record<string, { border: string; bg: string; icon: string }> = {
+  note:            { border: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  icon: '📝' },
+  absence:         { border: '#ef4444', bg: 'rgba(239,68,68,0.08)',   icon: '⚠' },
+  cours:           { border: '#8b5cf6', bg: 'rgba(139,92,246,0.08)',  icon: '📚' },
+  emploi_du_temps: { border: '#10b981', bg: 'rgba(16,185,129,0.08)',  icon: '📅' },
+  general:         { border: '#555',    bg: 'rgba(255,255,255,0.02)', icon: '🔔' },
+}
+
+function formatDate(d: string) {
+  const date = new Date(d)
+  const now  = new Date()
+  const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
+  if (diff < 60)   return 'À l\'instant'
+  if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`
+  if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)} h`
+  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 export default function NotificationsPage() {
@@ -24,18 +37,19 @@ export default function NotificationsPage() {
 
   const { data, isLoading } = useQuery<{ notifications: Notif[]; unread: number }>({
     queryKey: ['notifications'],
-    queryFn: () => api.get('/notifications').then(r => r.data),
+    queryFn:  () => api.get('/notifications').then(r => r.data),
   })
 
   const { mutate: markRead } = useMutation({
     mutationFn: (id: number) => api.put(`/notifications/${id}/read`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   })
 
   const { mutate: markAll } = useMutation({
     mutationFn: () => api.put('/notifications/read-all'),
-    onSuccess: () => {
+    onSuccess:  () => {
       qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['notif-unread'] })
       toast.success('Toutes les notifications lues')
     },
   })
@@ -43,64 +57,119 @@ export default function NotificationsPage() {
   const notifs = data?.notifications ?? []
   const unread = data?.unread ?? 0
 
-  if (isLoading) return <p className="p-6 text-gray-500">Chargement…</p>
+  if (isLoading) {
+    return (
+      <div style={{ background: '#111111', minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#555', fontSize: 13 }}>Chargement…</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="p-6 max-w-2xl space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-gray-800">Notifications</h1>
+    <div style={{ background: '#111111', minHeight: '100%' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '2rem 2.5rem' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '2rem' }}>
+          <div>
+            <p style={{ color: '#555', fontSize: 11, letterSpacing: '0.18em', marginBottom: 8 }}>INBOX</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+              <h1 style={{ fontFamily: SERIF, fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', color: '#fff', fontWeight: 700, lineHeight: 1.1 }}>
+                Notifi<span style={{ color: ACCENT, fontStyle: 'italic' }}>cations.</span>
+              </h1>
+              {unread > 0 && (
+                <span style={{
+                  background: ACCENT, color: '#fff',
+                  fontSize: 11, fontWeight: 700,
+                  padding: '3px 9px', borderRadius: 20,
+                }}>
+                  {unread}
+                </span>
+              )}
+            </div>
+          </div>
           {unread > 0 && (
-            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-              {unread}
-            </span>
+            <button
+              onClick={() => markAll()}
+              style={{
+                fontSize: 12, color: '#666', background: '#161616',
+                border: '1px solid #222', borderRadius: 8,
+                padding: '6px 14px', cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#ccc')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#666')}
+            >
+              Tout marquer comme lu
+            </button>
           )}
         </div>
-        {unread > 0 && (
-          <button onClick={() => markAll()}
-            className="text-sm text-blue-600 hover:underline">
-            Tout marquer comme lu
-          </button>
+
+        {/* Empty state */}
+        {notifs.length === 0 ? (
+          <div style={{
+            background: '#161616', border: '1px solid #1f1f1f',
+            borderRadius: 16, padding: '4rem',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 16, opacity: 0.4 }}>🔔</div>
+            <p style={{ color: '#444', fontSize: 14 }}>Aucune notification</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {notifs.map(n => {
+              const meta = TYPE_COLORS[n.type] ?? TYPE_COLORS.general
+              const isUnread = !n.lu
+              return (
+                <div
+                  key={n.id}
+                  onClick={() => isUnread && markRead(n.id)}
+                  style={{
+                    background: isUnread ? meta.bg : '#141414',
+                    border: `1px solid ${isUnread ? meta.border + '44' : '#1c1c1c'}`,
+                    borderLeft: `3px solid ${isUnread ? meta.border : '#222'}`,
+                    borderRadius: 12,
+                    padding: '1rem 1.25rem',
+                    display: 'flex',
+                    gap: '1rem',
+                    cursor: isUnread ? 'pointer' : 'default',
+                    transition: 'all 0.15s',
+                    opacity: isUnread ? 1 : 0.65,
+                  }}
+                  onMouseEnter={e => { if (isUnread) e.currentTarget.style.opacity = '0.9' }}
+                  onMouseLeave={e => { if (isUnread) e.currentTarget.style.opacity = '1' }}
+                >
+                  {/* Icon */}
+                  <span style={{ fontSize: 20, flexShrink: 0, lineHeight: 1.4 }}>
+                    {meta.icon}
+                  </span>
+
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 4 }}>
+                      <p style={{
+                        color: isUnread ? '#fff' : '#888',
+                        fontSize: 13, fontWeight: isUnread ? 600 : 500,
+                        flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {n.titre}
+                      </p>
+                      {isUnread && (
+                        <span style={{
+                          width: 7, height: 7, borderRadius: '50%',
+                          background: meta.border, flexShrink: 0,
+                        }} />
+                      )}
+                    </div>
+                    <p style={{ color: '#555', fontSize: 13, lineHeight: 1.5 }}>{n.message}</p>
+                    <p style={{ color: '#333', fontSize: 11, marginTop: 6 }}>{formatDate(n.created_at)}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
-
-      {notifs.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
-          <p className="text-4xl mb-3">🔔</p>
-          <p className="text-gray-500">Aucune notification</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {notifs.map(n => (
-            <div
-              key={n.id}
-              onClick={() => !n.lu && markRead(n.id)}
-              className={`bg-white rounded-xl border px-5 py-4 flex gap-4 cursor-pointer transition-all ${
-                n.lu ? 'border-gray-100 opacity-70' : 'border-blue-100 shadow-sm hover:shadow'
-              }`}
-            >
-              <span className="text-2xl shrink-0">{TYPE_ICONS[n.type] ?? '🔔'}</span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className={`text-sm font-semibold text-gray-800 ${!n.lu ? 'font-bold' : ''}`}>
-                    {n.titre}
-                  </p>
-                  {!n.lu && <span className="w-2 h-2 bg-blue-500 rounded-full shrink-0" />}
-                </div>
-                <p className="text-sm text-gray-500 mt-0.5">{n.message}</p>
-                <p className="text-xs text-gray-400 mt-1">{formatDate(n.created_at)}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
-}
-
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('fr-FR', {
-    day: '2-digit', month: 'long', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
 }

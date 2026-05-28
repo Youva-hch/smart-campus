@@ -11,7 +11,12 @@ class EtudiantModel extends Model
     public function findAll(): array
     {
         $stmt = $this->db->query(
-            "SELECT e.*, u.nom, u.prenom, u.email, u.actif, r.nom AS role
+            "SELECT e.*, u.nom, u.prenom, u.email, u.actif, r.nom AS role,
+                    (SELECT ROUND(AVG(n.note), 1)
+                     FROM notes n
+                     JOIN evaluations ev ON ev.id = n.evaluation_id
+                     JOIN inscriptions i ON i.cours_id = ev.cours_id AND i.etudiant_id = e.id
+                    ) AS moyenne
              FROM etudiants e
              JOIN utilisateurs u ON u.id = e.utilisateur_id
              JOIN roles r ON r.id = u.role_id

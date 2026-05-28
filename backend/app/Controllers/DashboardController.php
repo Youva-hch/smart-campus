@@ -150,7 +150,46 @@ class DashboardController
             [$enseignantId]
         );
 
-        echo json_encode(compact('cours', 'evaluationsAVenir', 'prochainesSeances'));
+        $notesStats = $this->fetchAll(
+            "SELECT c.id, c.code, c.nom,
+                    ROUND(AVG(n.note), 2)       AS moyenne_classe,
+                    COUNT(DISTINCT n.id)         AS nb_notes_saisies,
+                    COUNT(DISTINCT ev.id)        AS nb_evaluations,
+                    COUNT(DISTINCT i.etudiant_id) AS nb_inscrits
+             FROM cours c
+             LEFT JOIN evaluations ev ON ev.cours_id = c.id
+             LEFT JOIN notes n        ON n.evaluation_id = ev.id
+             LEFT JOIN inscriptions i ON i.cours_id = c.id AND i.statut = 'actif'
+             WHERE c.enseignant_id = ? AND c.actif = 1
+             GROUP BY c.id
+             ORDER BY c.code",
+            [$enseignantId]
+        );
+
+        $notesASaisirTotal = (int) array_reduce($evaluationsAVenir, function ($carry, $ev) {
+            return $carry + max(0, (int)$ev['nb_inscrits'] - (int)$ev['notes_saisies']);
+        }, 0);
+
+        $etudiantsARisque = $this->fetchAll(
+            "SELECT u.nom, u.prenom, e.numero_etudiant, e.filiere,
+                    c.code AS cours_code, c.id AS cours_id,
+                    COUNT(DISTINCT p.id) AS nb_absences
+             FROM cours c
+             JOIN inscriptions i ON i.cours_id = c.id AND i.statut = 'actif'
+             JOIN etudiants e    ON e.id = i.etudiant_id
+             JOIN utilisateurs u ON u.id = e.utilisateur_id
+             LEFT JOIN presences p ON p.etudiant_id = i.etudiant_id
+                 AND p.seance_id IN (SELECT id FROM seances WHERE cours_id = c.id)
+                 AND p.statut IN ('absent', 'retard')
+             WHERE c.enseignant_id = ?
+             GROUP BY e.id, c.id
+             HAVING nb_absences >= 2
+             ORDER BY nb_absences DESC
+             LIMIT 6",
+            [$enseignantId]
+        );
+
+        echo json_encode(compact('cours', 'evaluationsAVenir', 'prochainesSeances', 'notesStats', 'notesASaisirTotal', 'etudiantsARisque'));
     }
 
     // ── Admin ─────────────────────────────────────────────────────────────

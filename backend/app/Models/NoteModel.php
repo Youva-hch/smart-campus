@@ -39,6 +39,21 @@ class NoteModel extends Model
         return ['notes' => $notes, 'moyenne' => $moyenne];
     }
 
+    public function findByEvaluation(int $evaluationId): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT n.id, n.etudiant_id, n.evaluation_id, n.note, n.commentaire, n.saisie_par,
+                    u.nom, u.prenom, e.numero_etudiant, e.niveau, e.filiere
+             FROM notes n
+             JOIN etudiants e ON e.id = n.etudiant_id
+             JOIN utilisateurs u ON u.id = e.utilisateur_id
+             WHERE n.evaluation_id = ?
+             ORDER BY u.nom, u.prenom"
+        );
+        $stmt->execute([$evaluationId]);
+        return $stmt->fetchAll();
+    }
+
     public function findByCours(int $coursId): array
     {
         $stmt = $this->db->prepare(

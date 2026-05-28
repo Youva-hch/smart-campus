@@ -14,6 +14,10 @@ import EmploiDuTempsPage from './pages/EmploiDuTempsPage'
 import ProfilePage from './pages/ProfilePage'
 import NotificationsPage from './pages/NotificationsPage'
 import PresencePage from './pages/presences/PresencePage'
+import NotesPage from './pages/notes/NotesPage'
+import SaisieNotesPage from './pages/saisie/SaisieNotesPage'
+import MesPresencesPage from './pages/presences/MesPresencesPage'
+import MessageriePage from './pages/MessageriePage'
 
 const router = createBrowserRouter([
   {
@@ -36,14 +40,18 @@ const router = createBrowserRouter([
           { path: '/cours/create',     element: <CreateCoursPage /> },
           { path: '/cours/:id',        element: <CoursDetailPage /> },
           { path: '/emploi-du-temps',  element: <EmploiDuTempsPage /> },
+          { path: '/notes',            element: <NotesPage /> },
           { path: '/notifications',    element: <NotificationsPage /> },
+          { path: '/messagerie',       element: <MessageriePage /> },
+          { path: '/mes-presences',    element: <MesPresencesPage /> },
           { path: '/profil',           element: <ProfilePage /> },
 
           // Admin + enseignant
           {
             element: <PrivateRoute allowedRoles={['admin', 'enseignant']} />,
             children: [
-              { path: '/presences', element: <PresencePage /> },
+              { path: '/presences',    element: <PresencePage /> },
+              { path: '/saisie-notes', element: <SaisieNotesPage /> },
             ],
           },
 

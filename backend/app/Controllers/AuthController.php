@@ -36,12 +36,25 @@ class AuthController
 
         session_regenerate_id(true);
 
+        $profilId = null;
+        $db = getConnection();
+        if ($user['role'] === 'etudiant') {
+            $stmt = $db->prepare("SELECT id FROM etudiants WHERE utilisateur_id = ?");
+            $stmt->execute([$user['id']]);
+            $profilId = $stmt->fetchColumn() ?: null;
+        } elseif ($user['role'] === 'enseignant') {
+            $stmt = $db->prepare("SELECT id FROM enseignants WHERE utilisateur_id = ?");
+            $stmt->execute([$user['id']]);
+            $profilId = $stmt->fetchColumn() ?: null;
+        }
+
         $_SESSION['user'] = [
-            'id'     => $user['id'],
-            'nom'    => $user['nom'],
-            'prenom' => $user['prenom'],
-            'email'  => $user['email'],
-            'role'   => $user['role'],
+            'id'        => $user['id'],
+            'nom'       => $user['nom'],
+            'prenom'    => $user['prenom'],
+            'email'     => $user['email'],
+            'role'      => $user['role'],
+            'profil_id' => $profilId,
         ];
 
         echo json_encode($_SESSION['user']);
@@ -69,6 +82,24 @@ class AuthController
             http_response_code(401);
             echo json_encode(['error' => 'Non authentifié']);
             return;
+        }
+
+        // Back-fill profil_id for sessions created before this field was added
+        if (!array_key_exists('profil_id', $_SESSION['user'])) {
+            $db = getConnection();
+            $role = $_SESSION['user']['role'];
+            $uid  = $_SESSION['user']['id'];
+            $profilId = null;
+            if ($role === 'etudiant') {
+                $stmt = $db->prepare("SELECT id FROM etudiants WHERE utilisateur_id = ?");
+                $stmt->execute([$uid]);
+                $profilId = $stmt->fetchColumn() ?: null;
+            } elseif ($role === 'enseignant') {
+                $stmt = $db->prepare("SELECT id FROM enseignants WHERE utilisateur_id = ?");
+                $stmt->execute([$uid]);
+                $profilId = $stmt->fetchColumn() ?: null;
+            }
+            $_SESSION['user']['profil_id'] = $profilId;
         }
 
         echo json_encode($_SESSION['user']);
