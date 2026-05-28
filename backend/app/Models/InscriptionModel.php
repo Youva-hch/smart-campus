@@ -72,12 +72,26 @@ class InscriptionModel extends Model
         return (int) $this->db->lastInsertId();
     }
 
+    public function findById(int $id): array|false
+    {
+        $stmt = $this->db->prepare("SELECT * FROM inscriptions WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch() ?: false;
+    }
+
     public function annuler(int $id): bool
     {
-        $stmt = $this->db->prepare(
-            "UPDATE inscriptions SET statut = 'annule' WHERE id = ?"
-        );
+        $stmt = $this->db->prepare("DELETE FROM inscriptions WHERE id = ?");
         $stmt->execute([$id]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function annulerByCours(int $etudiantId, int $coursId): bool
+    {
+        $stmt = $this->db->prepare(
+            "DELETE FROM inscriptions WHERE etudiant_id = ? AND cours_id = ?"
+        );
+        $stmt->execute([$etudiantId, $coursId]);
         return $stmt->rowCount() > 0;
     }
 }

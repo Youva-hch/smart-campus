@@ -152,13 +152,13 @@ match (true) {
 
     $method === 'POST' && $uri === '/api/inscriptions'
         => (function () {
-            AuthMiddleware::hasRole('admin');
+            AuthMiddleware::isAuthenticated();
             (new InscriptionController())->store();
         })(),
 
     $method === 'DELETE' && preg_match('#^/api/inscriptions/(\d+)$#', $uri, $m)
         => (function () use ($m) {
-            AuthMiddleware::hasRole('admin');
+            AuthMiddleware::isAuthenticated();
             (new InscriptionController())->destroy((int)$m[1]);
         })(),
 

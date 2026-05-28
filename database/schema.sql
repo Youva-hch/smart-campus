@@ -123,11 +123,13 @@ CREATE TABLE presences (
     id INT PRIMARY KEY AUTO_INCREMENT,
     etudiant_id INT NOT NULL,
     seance_id INT NOT NULL,
+    date_seance DATE,
     statut ENUM('present','absent','retard','excuse') DEFAULT 'absent',
     commentaire VARCHAR(255),
     enregistre_par INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_presence (etudiant_id, seance_id),
+    UNIQUE KEY unique_presence (etudiant_id, seance_id, date_seance),
+    KEY idx_etudiant (etudiant_id),
     FOREIGN KEY (etudiant_id) REFERENCES etudiants(id) ON DELETE CASCADE,
     FOREIGN KEY (seance_id) REFERENCES seances(id) ON DELETE CASCADE,
     FOREIGN KEY (enregistre_par) REFERENCES enseignants(id) ON DELETE SET NULL
@@ -142,6 +144,18 @@ CREATE TABLE notifications (
     lu TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id) ON DELETE CASCADE
+);
+
+CREATE TABLE messages (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    expediteur_id INT NOT NULL,
+    destinataire_id INT NOT NULL,
+    sujet VARCHAR(200) DEFAULT '',
+    corps TEXT NOT NULL,
+    lu TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (expediteur_id) REFERENCES utilisateurs(id) ON DELETE CASCADE,
+    FOREIGN KEY (destinataire_id) REFERENCES utilisateurs(id) ON DELETE CASCADE
 );
 
 INSERT INTO roles (nom) VALUES ('admin'), ('enseignant'), ('etudiant');

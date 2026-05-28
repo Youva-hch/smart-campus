@@ -14,7 +14,7 @@ interface Cours {
   nb_inscrits?: number; nb_seances?: number; nb_evals?: number
 }
 interface MesCours {
-  enrolled: (Cours & { ma_moyenne: number | null; nb_notes_saisies: number; nb_evals: number; nb_seances: number; prochaine_jour?: string; prochaine_heure?: string })[]
+  enrolled: (Cours & { ma_moyenne: number | null; nb_notes_saisies: number; nb_evals: number; nb_seances: number; prochaine_jour?: string; prochaine_heure?: string; inscription_id: number })[]
   catalogue: (Cours & { nb_inscrits: number })[]
 }
 
@@ -41,9 +41,22 @@ function toNum(v: unknown): number | null {
 /* ── Vue étudiant ─────────────────────────────────────────────────────────── */
 function EtudiantView() {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const { data, isLoading } = useQuery<MesCours>({
     queryKey: ['mes-cours'],
     queryFn:  () => api.get('/cours/mes-cours').then(r => r.data),
+  })
+
+  const { mutate: sInscrire, isPending: inscribing } = useMutation({
+    mutationFn: (coursId: number) => api.post('/inscriptions', { cours_id: coursId }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mes-cours'] }); toast.success('Inscription confirmée') },
+    onError: (err: any) => toast.error(err?.response?.data?.error ?? 'Erreur inscription'),
+  })
+
+  const { mutate: seDesinscrire, isPending: unscribing } = useMutation({
+    mutationFn: (inscriptionId: number) => api.delete(`/inscriptions/${inscriptionId}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['mes-cours'] }); toast.success('Désinscription effectuée') },
+    onError: () => toast.error('Erreur désinscription'),
   })
 
   const enrolled  = data?.enrolled  ?? []
@@ -117,15 +130,23 @@ function EtudiantView() {
                   </div>
                 </div>
 
-                {/* Prochaine séance */}
-                {jour && heure && (
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingTop:'0.5rem', borderTop:'1px solid #1e1e1e' }}>
-                    <span style={{ color:'#444', fontSize:11 }}>Prochaine séance</span>
-                    <span style={{ color:'#ccc', fontSize:11, fontWeight:600, fontFamily:'monospace' }}>
-                      {jour} {heure}
-                    </span>
-                  </div>
-                )}
+                {/* Prochaine séance + désincription */}
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingTop:'0.5rem', borderTop:'1px solid #1e1e1e' }}>
+                  {jour && heure ? (
+                    <span style={{ color:'#666', fontSize:11 }}>{jour} {heure}</span>
+                  ) : (
+                    <span style={{ color:'#333', fontSize:11 }}>Pas de séance</span>
+                  )}
+                  <button
+                    onClick={e => { e.stopPropagation(); seDesinscrire(c.inscription_id) }}
+                    disabled={unscribing}
+                    style={{ fontSize:10, color:'#555', background:'transparent', border:'1px solid #2a2a2a', borderRadius:5, padding:'3px 8px', cursor:'pointer' }}
+                    onMouseEnter={ev => { ev.currentTarget.style.color='#f87171'; ev.currentTarget.style.borderColor='#f87171' }}
+                    onMouseLeave={ev => { ev.currentTarget.style.color='#555'; ev.currentTarget.style.borderColor='#2a2a2a' }}
+                  >
+                    Se désinscrire
+                  </button>
+                </div>
               </div>
             )
           })}
@@ -148,7 +169,7 @@ function EtudiantView() {
               const color  = codeColor(c.code)
               const plein  = c.capacite_max > 0 && c.nb_inscrits >= c.capacite_max
               return (
-                <div key={c.id} style={{ display:'grid', gridTemplateColumns:'100px 1fr 60px 80px 100px', padding:'12px 1.25rem', alignItems:'center', borderBottom: i < catalogue.length-1 ? '1px solid #191919' : 'none' }}>
+                <div key={c.id} style={{ display:'grid', gridTemplateColumns:'100px 1fr 60px 80px 110px', padding:'12px 1.25rem', alignItems:'center', borderBottom: i < catalogue.length-1 ? '1px solid #191919' : 'none' }}>
                   <span style={{ fontSize:11, fontFamily:'monospace', fontWeight:700, color:color.text }}>{c.code}</span>
                   <div>
                     <p style={{ color:'#ccc', fontSize:13 }}>{c.nom}</p>
@@ -156,12 +177,19 @@ function EtudiantView() {
                   </div>
                   <span style={{ color:'#666', fontSize:12 }}>{c.credits}</span>
                   <span style={{ color:'#666', fontSize:12 }}>{c.nb_inscrits}/{c.capacite_max}</span>
-                  <span style={{ fontSize:11, fontWeight:600, padding:'3px 8px', borderRadius:5, display:'inline-block', textAlign:'center',
-                    background: plein ? 'rgba(248,113,113,0.1)' : 'rgba(74,222,128,0.1)',
-                    color: plein ? '#f87171' : '#4ade80',
-                  }}>
-                    {plein ? 'Complet' : 'Ouvert'}
-                  </span>
+                  {plein ? (
+                    <span style={{ fontSize:11, fontWeight:600, padding:'3px 8px', borderRadius:5, display:'inline-block', textAlign:'center', background:'rgba(248,113,113,0.1)', color:'#f87171' }}>
+                      Complet
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => sInscrire(c.id)}
+                      disabled={inscribing}
+                      style={{ fontSize:11, fontWeight:700, padding:'4px 10px', borderRadius:6, border:'none', background:ACCENT, color:'#fff', cursor:'pointer', opacity: inscribing ? 0.6 : 1, transition:'opacity 0.15s' }}
+                    >
+                      S'inscrire
+                    </button>
+                  )}
                 </div>
               )
             })}

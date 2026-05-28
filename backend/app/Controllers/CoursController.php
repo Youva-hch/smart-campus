@@ -98,6 +98,7 @@ class CoursController
         // Cours inscrits avec stats
         $enrolled = $db->prepare("
             SELECT c.id, c.code, c.nom, c.credits, c.semestre, c.niveau, c.capacite_max, c.departement,
+                   i.id AS inscription_id,
                    CONCAT(u.prenom,' ',u.nom) AS enseignant_nom,
                    (SELECT COUNT(*) FROM seances s WHERE s.cours_id = c.id) AS nb_seances,
                    (SELECT COUNT(*) FROM evaluations e WHERE e.cours_id = c.id) AS nb_evals,

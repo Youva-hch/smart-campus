@@ -34,18 +34,35 @@ class InscriptionController
 
     public function store(): void
     {
-        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        $sessionUser = $_SESSION['user'] ?? null;
+        if (!$sessionUser) { http_response_code(401); echo json_encode(['error' => 'Non authentifié']); return; }
 
-        foreach (['etudiant_id', 'cours_id'] as $field) {
-            if (empty($body[$field])) {
+        $body    = json_decode(file_get_contents('php://input'), true) ?? [];
+        $coursId = (int)($body['cours_id'] ?? 0);
+
+        if (!$coursId) {
+            http_response_code(422);
+            echo json_encode(['error' => "Le champ 'cours_id' est requis"]);
+            return;
+        }
+
+        // Étudiant s'inscrit lui-même ; admin peut inscrire n'importe qui
+        if ($sessionUser['role'] === 'etudiant') {
+            $etudiantId = (int)($sessionUser['profil_id'] ?? 0);
+            if (!$etudiantId) {
                 http_response_code(422);
-                echo json_encode(['error' => "Le champ '$field' est requis"]);
+                echo json_encode(['error' => 'Profil étudiant introuvable en session']);
+                return;
+            }
+        } else {
+            $etudiantId = (int)($body['etudiant_id'] ?? 0);
+            if (!$etudiantId) {
+                http_response_code(422);
+                echo json_encode(['error' => "Le champ 'etudiant_id' est requis"]);
                 return;
             }
         }
-
-        $etudiantId = (int)$body['etudiant_id'];
-        $coursId    = (int)$body['cours_id'];
 
         if ($this->model->isAlreadyInscrit($etudiantId, $coursId)) {
             http_response_code(409);
@@ -59,9 +76,9 @@ class InscriptionController
         if ($inscrits >= $capaciteMax) {
             http_response_code(400);
             echo json_encode([
-                'error'       => 'Capacité maximale du cours atteinte',
+                'error'        => 'Capacité maximale du cours atteinte',
                 'capacite_max' => $capaciteMax,
-                'inscrits'    => $inscrits,
+                'inscrits'     => $inscrits,
             ]);
             return;
         }
@@ -73,6 +90,20 @@ class InscriptionController
 
     public function destroy(int $id): void
     {
+        if (session_status() === PHP_SESSION_NONE) session_start();
+        $sessionUser = $_SESSION['user'] ?? null;
+
+        // Étudiant ne peut annuler que ses propres inscriptions
+        if ($sessionUser && $sessionUser['role'] === 'etudiant') {
+            $inscription = $this->model->findById($id);
+            $profilId    = (int)($sessionUser['profil_id'] ?? 0);
+            if (!$inscription || (int)$inscription['etudiant_id'] !== $profilId) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Action non autorisée']);
+                return;
+            }
+        }
+
         $annule = $this->model->annuler($id);
 
         if (!$annule) {

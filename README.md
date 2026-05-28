@@ -1,16 +1,16 @@
 # SmartCampus
 
-Application de gestion de campus universitaire — Backend PHP vanilla (MVC) + Frontend React TypeScript.
+Application de gestion académique universitaire — architecture client-serveur avec backend PHP MVC et frontend React TypeScript.
 
 ## Stack technique
 
-| Couche | Techno |
+| Couche | Technologies |
 |---|---|
-| Frontend | React 19, TypeScript, Vite, TailwindCSS v3, React Query |
+| Frontend | React 19, TypeScript, Vite, TailwindCSS v3, React Query v5, React Router v6 |
 | Backend | PHP 8.2+ vanilla (architecture MVC, sans framework) |
 | Base de données | MySQL 8+ |
 | HTTP Client | Axios |
-| Routing | React Router v6 |
+| Auth | Sessions PHP + HttpOnly cookies |
 
 ## Prérequis
 
@@ -19,46 +19,57 @@ Application de gestion de campus universitaire — Backend PHP vanilla (MVC) + F
 - Node.js 18+
 - npm 9+
 
+---
+
 ## Installation
 
-### 1. Cloner le projet
+### 1. Cloner le dépôt
 
 ```bash
-git clone <url-du-repo>
+git clone https://github.com/Youva-hch/smart-campus.git
 cd smart-campus
 ```
 
 ### 2. Base de données
 
 ```bash
-# Créer la base et les tables
-mysql -u root < database/schema.sql
-
-# Insérer les données de démo
-mysql -u root < database/seed.sql
+mysql -u root -p < database/schema.sql
+mysql -u root -p smart_campus < database/seed.sql
 ```
 
-> Si MySQL nécessite un mot de passe : `mysql -u root -p < database/schema.sql`
+> Le script `schema.sql` crée la base `smart_campus` et toutes les tables.  
+> Le script `seed.sql` insère les données de test (comptes, cours, étudiants, notes, présences, messages).
 
-### 3. Configurer le backend
+### 3. Configuration du backend
 
-Éditer `backend/config/database.php` si besoin :
+Copiez et adaptez le fichier de configuration :
+
+```bash
+cp backend/config/database.example.php backend/config/database.php
+```
+
+Éditez `backend/config/database.php` :
 
 ```php
-define('DB_HOST', 'localhost');
-define('DB_PORT', '3306');
-define('DB_NAME', 'smartcampus');
-define('DB_USER', 'root');
-define('DB_PASS', '');        // adapter si mot de passe MySQL
+return [
+    'host'     => 'localhost',
+    'dbname'   => 'smart_campus',
+    'username' => 'root',
+    'password' => 'votre_mot_de_passe',
+    'charset'  => 'utf8mb4',
+];
 ```
 
 ### 4. Lancer le backend PHP
 
 ```bash
-php -S localhost:8000 -t backend/public
+cd backend
+php -S localhost:8000 -t public
 ```
 
-### 5. Installer et lancer le frontend
+Le backend écoute sur `http://localhost:8000`.
+
+### 5. Lancer le frontend
 
 ```bash
 cd frontend
@@ -66,114 +77,82 @@ npm install
 npm run dev
 ```
 
-L'application est accessible sur **http://localhost:5173**
+Le frontend est accessible sur `http://localhost:5173`.
 
-## Comptes de démonstration
+> Le proxy Vite redirige automatiquement `/api/*` vers `http://localhost:8000/api/*` (configuré dans `vite.config.ts`).
+
+---
+
+## Comptes de test
 
 | Rôle | Email | Mot de passe |
 |---|---|---|
-| Administrateur | admin@smartcampus.fr | password |
-| Enseignant | j.moreau@smartcampus.fr | password |
-| Enseignant | s.benali@smartcampus.fr | password |
-| Enseignant | t.lefebvre@smartcampus.fr | password |
-| Étudiant | l.dupont@etu.smartcampus.fr | password |
-| Étudiant | c.martin@etu.smartcampus.fr | password |
-| Étudiant | k.nguyen@etu.smartcampus.fr | password |
+| Administrateur | admin@polynum.fr | admin123 |
+| Enseignant | prof.martin@polynum.fr | prof123 |
+| Étudiant | alice.dupont@etu.polynum.fr | etudiant123 |
 
-## Fonctionnalités
+---
 
-### Administrateur
-- Dashboard avec statistiques globales (étudiants, enseignants, cours, inscriptions)
-- Gestion complète des étudiants (liste, profil, création)
-- Gestion complète des enseignants
-- Gestion des cours (liste, détail, création)
-- Saisie de notes via modal
-
-### Enseignant
-- Dashboard personnalisé : ses cours, évaluations à venir, prochaines séances
-- Accès aux cours et à l'emploi du temps
-- Saisie de notes pour ses étudiants
-
-### Étudiant
-- Dashboard : ses cours du semestre, notes récentes, emploi du temps de la semaine
-- Consultation des cours et de l'emploi du temps visuel
-
-## Structure du projet
+## Architecture
 
 ```
 smart-campus/
 ├── backend/
+│   ├── public/          # Point d'entrée (index.php)
 │   ├── app/
-│   │   ├── Controllers/     # AuthController, EtudiantController, CoursController…
-│   │   ├── Models/          # Un modèle par entité (PDO)
-│   │   ├── Middleware/      # AuthMiddleware (isAuthenticated, hasRole)
-│   │   └── Views/
-│   ├── config/
-│   │   └── database.php     # Connexion PDO singleton
-│   ├── public/
-│   │   ├── index.php        # Point d'entrée unique
-│   │   └── .htaccess
+│   │   ├── Controllers/ # Logique métier (AuthController, CoursController, etc.)
+│   │   ├── Models/      # Accès base de données (PDO)
+│   │   └── Middleware/  # AuthMiddleware (sessions, rôles)
+│   ├── config/          # Configuration DB
 │   └── routes/
-│       └── api.php          # Dispatch de toutes les routes API
-├── database/
-│   ├── schema.sql           # Schéma complet (11 tables)
-│   └── seed.sql             # Données de démo
-└── frontend/
-    └── src/
-        ├── api/             # client axios
-        ├── components/      # Layout, PrivateRoute
-        ├── context/         # AuthContext
-        ├── pages/           # Pages par domaine
-        └── router.tsx       # Routes React Router v6
+│       └── api.php      # Routage REST
+├── frontend/
+│   ├── src/
+│   │   ├── pages/       # Composants de pages (Dashboard, Cours, Notes, etc.)
+│   │   ├── components/  # Layout, PrivateRoute, UI
+│   │   ├── context/     # AuthContext (état global utilisateur)
+│   │   ├── api/         # Client Axios
+│   │   └── router.tsx   # Routes React
+│   └── vite.config.ts
+└── database/
+    ├── schema.sql        # Structure complète de la base
+    └── seed.sql          # Données de test
 ```
 
-## API REST — Routes principales
+---
 
-```
-POST   /api/auth/login
-POST   /api/auth/logout
-GET    /api/auth/me
+## Fonctionnalités implémentées
 
-GET    /api/etudiants
-POST   /api/etudiants
-GET    /api/etudiants/:id
-PUT    /api/etudiants/:id
-DELETE /api/etudiants/:id
+### Authentification
+- Connexion / déconnexion avec sessions PHP sécurisées
+- Accès différencié par rôle (admin / enseignant / étudiant)
+- Protection de toutes les routes sensibles
 
-GET    /api/enseignants
-POST   /api/enseignants
-GET    /api/enseignants/:id
-PUT    /api/enseignants/:id
-DELETE /api/enseignants/:id
+### Espace étudiant
+- Tableau de bord (cours du jour, notes récentes, présences)
+- Mes cours (cours inscrits avec moyenne, avancement, prochaine séance)
+- Inscription / désinscription aux cours disponibles
+- Notes & relevé (par cours, par évaluation, avec coefficients)
+- Mes présences (taux global, heatmap 90j, historique)
+- Emploi du temps (navigation semaine par semaine)
+- Messagerie (conversations, envoi, réception temps réel)
+- Notifications
 
-GET    /api/cours
-POST   /api/cours
-GET    /api/cours/:id
-PUT    /api/cours/:id
-DELETE /api/cours/:id          (désactivation soft)
+### Espace enseignant
+- Tableau de bord (cours, étudiants à risque, évaluations en attente)
+- Saisie des notes (par cours, par évaluation, avec verrouillage)
+- Feuille d'appel (QR code, timer 5 min, statuts P/A/R/E)
+- Emploi du temps
 
-GET    /api/inscriptions?etudiant_id=X
-GET    /api/inscriptions?cours_id=X
-POST   /api/inscriptions
-DELETE /api/inscriptions/:id
+### Espace administrateur
+- Pilotage académique (KPIs, graphe occupation, activité)
+- Gestion des étudiants (CRUD, filtres, note moyenne)
+- Corps enseignant (répartition par département, nb cours)
+- Cours & UE (création, désactivation, occupation)
 
-GET    /api/notes?etudiant_id=X
-GET    /api/notes?cours_id=X
-POST   /api/notes
-PUT    /api/notes/:id
-
-GET    /api/evaluations?cours_id=X
-POST   /api/evaluations
-PUT    /api/evaluations/:id/verrouiller
-
-GET    /api/seances?cours_id=X
-GET    /api/seances?etudiant_id=X
-GET    /api/seances?enseignant_id=X
-POST   /api/seances
-PUT    /api/seances/:id
-DELETE /api/seances/:id
-
-GET    /api/dashboard/admin
-GET    /api/dashboard/enseignant
-GET    /api/dashboard/etudiant
-```
+### Règles métier
+- Pas de double inscription (contrainte UNIQUE en base)
+- Contrôle de la capacité maximale des cours
+- Verrouillage des notes après validation
+- Restriction des actions selon les rôles
+- Alerte étudiants à risque (absences excessives)
